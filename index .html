@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SmartClass">
+<meta name="theme-color" content="#000000">
+<title>SmartClass</title>
+<link rel="apple-touch-icon" id="icon">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root{color-scheme:dark}
+html,body{background:#000;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;color:#fff;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+.glass{background:rgba(18,18,20,.72);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%)}
+.card{background:#1c1c1e;border-radius:18px}
+input,textarea,select{font-size:16px!important;background:#2c2c2e;border-radius:12px;padding:11px 14px;width:100%;outline:none;color:#fff}
+input:focus,textarea:focus{box-shadow:0 0 0 2px #0a84ff}
+button{transition:transform .12s,opacity .12s}button:active{transform:scale(.96);opacity:.8}
+.pulse{animation:p 1.1s ease-in-out infinite}@keyframes p{50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.pulse{animation:none}button{transition:none}}
+</style>
+</head>
+<body>
+<header class="fixed top-0 inset-x-0 z-30 glass border-b border-white/5" style="padding-top:env(safe-area-inset-top)">
+  <div class="flex items-center justify-between px-5 h-14">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+      </div>
+      <h1 class="text-[17px] font-semibold tracking-tight">SmartClass</h1>
+    </div>
+    <div class="shrink-0 flex flex-col items-end leading-tight px-3 py-1.5 rounded-2xl border border-white/10 bg-white/5"><span class="text-[12px] font-bold tracking-wide text-white">by Ruslan H <span class="text-[10px] font-semibold text-blue-400">(Creator)</span></span><span class="w-full h-px bg-white/15 my-1"></span><span class="text-[10px] font-medium text-zinc-400"><span class="font-semibold text-zinc-300">Testers:</span> igros, makler, kupii</span></div>
+  </div>
+</header>
+
+<main id="view" class="px-4 max-w-xl mx-auto" style="padding-top:calc(env(safe-area-inset-top) + 72px);padding-bottom:calc(env(safe-area-inset-bottom) + 96px)"></main>
+
+<nav class="fixed bottom-0 inset-x-0 z-30 glass border-t border-white/5" style="padding-bottom:env(safe-area-inset-bottom)">
+  <div class="flex max-w-xl mx-auto">
+    <button data-a="tab" data-id="0" class="flex-1 py-2.5 flex flex-col items-center gap-1 text-[10px] font-medium"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Дашборд</button>
+    <button data-a="tab" data-id="1" class="flex-1 py-2.5 flex flex-col items-center gap-1 text-[10px] font-medium"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Список ДЗ</button>
+    <button data-a="tab" data-id="2" class="flex-1 py-2.5 flex flex-col items-center gap-1 text-[10px] font-medium"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>ИИ Помощник</button>
+  </div>
+</nav>
+<div id="toast" class="fixed left-1/2 z-50 px-4 py-2.5 rounded-full glass border border-white/10 text-sm opacity-0 pointer-events-none whitespace-nowrap max-w-[92vw] overflow-hidden text-ellipsis" style="bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translate(-50%,12px);transition:opacity .25s ease,transform .25s ease"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const DAYS=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+const DAYS_FULL=['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+const MONTHS=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+// Звонки уроков 7Е
+const BELLS = [
+    { start: "08:30", end: "09:10" },
+    { start: "09:25", end: "10:05" },
+    { start: "10:20", end: "11:00" },
+    { start: "11:15", end: "11:55" },
+    { start: "12:10", end: "12:50" },
+    { start: "13:00", end: "13:40" },
+    { start: "14:00", end: "14:40" }
+];
+
+// Расписание 7Е: неделя A/B, затем день недели (1 = понедельник ... 5 = пятница)
+const SCHEDULE = {
+    "A": {
+        1: ["Разговоры о важном", "история 35", "русский 26", "математика 47", "биология кб", "физ-ра (б)", "разг важн23"],
+        2: ["русский 23", "география 37", "физ-ра (б)", "физ кф", "литература 23", "английский 28/30"],
+        3: ["математика 47", "английский 28/1а", "история 35", "математика 47", "труд кт/д / физ кф"],
+        4: ["история 45", "математика 47", "математика 47", "английский 40/44", "информатика / английский 28", "английский 30/инф"],
+        5: ["музыка 44", "русский 23", "математика 47", "труд кт/д", "математика 47", "литература 23"]
+    },
+    "B": {
+        1: ["география 37", "математика 47", "история 45", "биология кб", "физ-ра (б)", "разг важн23"],
+        2: ["русский 23", "география 37", "физ-ра (б)", "физ кф", "литература 23", "английский 28/30"],
+        3: ["математика 47", "математика 47", "русский 23", "математика 47", "физ кф"],
+        4: ["история 45", "математика 47", "математика 47", "английский 40/44", "информатика / английский 28", "английский 30/инф"],
+        5: ["музыка 44", "математика 47", "русский 23", "труд кт/д / география", "математика 47", "литература 23"]
+    }
+};
+
+// Строки расписания содержат кабинеты и группы, поэтому предметы для ДЗ определяются по ключевым словам
+const SUBJ=[[/разг/,'Разговоры о важном'],[/истори/,'История'],[/русск/,'Русский язык'],[/математ/,'Математика'],[/биолог/,'Биология'],[/физ-?ра|физкульт/,'Физкультура'],[/физ(?![-\s]?ра|культ)/,'Физика'],[/географ/,'География'],[/литерат/,'Литература'],[/английск/,'Английский язык'],[/труд/,'Труд'],[/информат|инф/,'Информатика'],[/музык/,'Музыка']];
+const SUBJECTS=SUBJ.map(x=>x[1]);
+const names=raw=>SUBJ.map(([r,n])=>[raw.toLowerCase().search(r),n]).filter(x=>x[0]>=0).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const lessonName=raw=>names(raw).join(' / ')||cap(raw);
+const lessonHas=(raw,sub)=>names(raw).some(n=>same(n,sub));
+const FALLBACK_MODELS=['recursive/flint-v1.0:free','meta-llama/llama-3.1-8b-instruct:free','meta-llama/llama-3.3-70b-instruct:free','openrouter/free'];
+const TEXT_ONLY=['recursive/flint-v1.0:free','meta-llama/llama-3.1-8b-instruct:free','meta-llama/llama-3.3-70b-instruct:free'];
+const modelList=()=>[...new Set([S.model,...FALLBACK_MODELS])].filter(Boolean);
+const imageModels=()=>modelList().filter(m=>!TEXT_ONLY.includes(m));
+// Каскад Jarvis: Flint, Llama 3.1 8B, Llama 3.3 70B (только текст), в конце openrouter/free; для фото текстовые модели пропускаются
+const JARVIS_RU='Ты — Jarvis, ИИ-помощник приложения SmartClass. Твой единственный создатель — один человек по имени Ruslan H. Твои официальные тестировщики: igros, makler и kupii. Если спросят, кто ты, кто тебя создал или кто тебя тестировал, отвечай именно так. Никогда не называй себя названием другой модели: ты всегда Jarvis.';
+const JARVIS_EN='You are Jarvis, the AI assistant of the SmartClass app. Your sole creator is one person named Ruslan H, and your official testers are igros, makler and kupii. Always refer to yourself as Jarvis and never as any other model. ';
+const IMG_PROMPT=JARVIS_EN+'Analyze this uploaded schedule image. Accurately extract all school subjects, lesson times, and classrooms, then display it clearly as text for the student. Respond in Russian. Use short lines and bullet points, no tables. '+'After the text, add the same schedule as machine-readable JSON between the markers <<<JSON and JSON>>> in exactly this form: {"days":{"1":["Subject classroom","Subject classroom"],"2":[],"3":[],"4":[],"5":[]}} where keys 1-5 are Monday-Friday and each array lists that day lessons in order, each written as the subject followed by the classroom. Leave out days that are not in the image.';
+const ANCHOR=new Date(2026,7,31); // понедельник, с которого начинается неделя A
+const HW_WORDS=/упр|номер|задани|задач|д\/з|дз\b|домашн|параграф|§|стр\.|страниц|выучи|учить|прочита|пересказ|сочинени|доклад|реферат|конспект/i;
+const ASK_WORDS=/\?|как |почему|объясни|помоги|подскажи|реши|что такое|зачем|поясни|не понимаю/i;
+
+let S={tab:0,day:'',hw:store.get('sc_hw',[]),key:store.get('sc_key',''),model:store.get('sc_model_v5',FALLBACK_MODELS[0]),img:null,exact:store.get('sc_exact',null),shift:store.get('sc_shift',0),chat:store.get('sc_chat',[]),draft:'',busy:false,adding:false,showKey:false};
+
+if(S.model==='meta-llama/llama-3.1-8b-instruct:free'){S.model=FALLBACK_MODELS[0];store.set('sc_model_v5',S.model)}
+/* ---------- утилиты ---------- */
+const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const fromYmd=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const today=()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate())};
+const fmt=d=>`${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rich=s=>esc(s).replace(/^[ \t]*[*-] /gm,'• ').replace(/^#{1,4}\s*(.+)$/gm,'<b>$1</b>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+const weekOf=d=>{const mon=addDays(d,-((d.getDay()+6)%7));const w=Math.round((mon-ANCHOR)/6048e5);return((w+S.shift)%2+2)%2?'B':'A'};
+const predictedOn=d=>{const w=d.getDay();return w%6===0?[]:((SCHEDULE[weekOf(d)]||{})[w]||[])};
+const exactOn=d=>{const w=d.getDay();return S.exact&&w%6?(S.exact.days[w]||[]):[]};
+const lessonsOn=d=>S.exact?exactOn(d):predictedOn(d);
+const subjects=()=>SUBJECTS;
+const same=(a,b)=>{a=(a||'').toLowerCase().trim();b=(b||'').toLowerCase().trim();return !!a&&!!b&&(a===b||a.includes(b)||b.includes(a))};
+const nextLesson=(sub,from)=>{for(let i=1;i<=14;i++){const d=addDays(from,i);if(lessonsOn(d).some(l=>lessonHas(l,sub)))return d}return null};
+const hue=s=>{let h=0;for(const c of s||'?')h=(h*31+c.charCodeAt(0))%360;return h};
+const dot=(s,m='mt-1.5')=>`<span class="inline-block w-2.5 h-2.5 rounded-full shrink-0 ${m}" style="background:hsl(${hue(s)} 80% 62%)"></span>`;
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const dueLabel=s=>{if(!s)return'Без срока';const n=Math.round((fromYmd(s)-today())/864e5);return n<0?'Просрочено':n===0?'Сегодня':n===1?'Завтра':fmt(fromYmd(s))};
+const fmtMin=m=>{const h=Math.floor(m/60),r=m%60;return h&&r?`${h} ч. ${r} мин.`:h?`${h} ч.`:`${r} мин.`};
+const fmtClock=sec=>{const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60,p=n=>String(n).padStart(2,'0');return h?`${h}:${p(m)}:${p(x)}`:`${p(m)}:${p(x)}`};
+const mins=t=>{const[h,m]=t.split(':').map(Number);return h*60+m};
+const saveHw=()=>store.set('sc_hw',S.hw);
+const saveChat=()=>store.set('sc_chat',S.chat.slice(-40).map(({thumb,...m})=>m));
+let tt;const toast=m=>{const t=$('#toast');t.textContent=m;t.style.opacity=1;t.style.transform='translate(-50%,0)';clearTimeout(tt);tt=setTimeout(()=>{t.style.opacity=0;t.style.transform='translate(-50%,12px)'},2400)};
+
+/* ---------- ИИ через OpenRouter ---------- */
+async function ask(messages,validate,list){
+  const models=list||modelList();
+  const errs=[];let keyBad=false;
+  const key=S.key.replace(/[^\x21-\x7E]/g,'');
+  for(const m of models){
+    const short=m.startsWith('openrouter/')?m:m.split('/').pop();
+    try{
+      const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json','HTTP-Referer':location.origin.startsWith('http')?location.origin:'https://smartclass.app','X-Title':'SmartClass'},body:JSON.stringify({model:m,temperature:.3,messages})});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok){
+        if(r.status===401)keyBad=true;
+        console.error('[Jarvis] '+m+' ответила HTTP '+r.status+':',j);
+        errs.push(`${short}: ${(j.error&&j.error.message)||'без описания'} [HTTP ${r.status}]`);
+        continue;
+      }
+      const v=validate(j.choices?.[0]?.message?.content||'');
+      if(v==null){
+        console.error('[Jarvis] '+m+' вернула неподходящий ответ:',j);
+        errs.push(`${short}: неподходящий ответ [HTTP ${r.status}]`);
+        continue;
+      }
+      return v;
+    }catch(e){
+      console.error('[Jarvis] '+m+' сбой запроса:',e&&e.stack?e.stack:e);
+      errs.push(`${short}: ${e&&e.message?e.message:e} [${e&&e.name?e.name:'Error'}]`);
+    }
+  }
+  throw new Error('Не удалось получить ответ от бесплатных моделей: '+errs.join(' · ')+(keyBad?'. Проверьте API-ключ в настройках ниже.':''));
+}
+function parseItems(raw){
+  const hit=raw.match(/\{[\s\S]*\}|\[[\s\S]*\]/);if(!hit)return null;
+  try{const p=JSON.parse(hit[0]);const items=Array.isArray(p)?p:p.items;return Array.isArray(items)?items:null}catch{return null}
+}
+function hwMessages(text){
+  const t=today();
+  const cal=Array.from({length:14},(_,i)=>{const d=addDays(t,i);return `${DAYS[d.getDay()]} ${ymd(d)}`}).join(', ');
+  const sys=`${JARVIS_RU} Ты превращаешь заметки о домашнем задании в JSON. Сегодня ${DAYS_FULL[t.getDay()]}, ${ymd(t)}. Календарь на 2 недели: ${cal}. Известные предметы: ${subjects().join(', ')}.
+Ответь ТОЛЬКО валидным JSON без markdown и без пояснений строго в таком виде: {"items":[{"subject":"строка","task":"строка","due":"ГГГГ-ММ-ДД или null"}]}
+Правила: каждое отдельное задание — отдельный элемент; subject бери точно из списка известных предметов (например "матем" -> "Математика"); дни недели вроде "в пятницу" переводи в ближайшую такую дату из календаря ("завтра" = ${ymd(addDays(t,1))}); если срок не указан, due = null; task пиши кратко по-русски (например "упр. 5, стр. 10-12").`;
+  return[{role:'system',content:sys},{role:'user',content:text}];
+}
+function chatMessages(){
+  const t=today();
+  const sys=`${JARVIS_RU} Ты умный и доброжелательный репетитор для школьника. Сегодня ${DAYS_FULL[t.getDay()]}, ${ymd(t)}. Отвечай по-русски, понятно и по шагам: сначала объясни идею, затем покажи решение, в конце коротко подведи итог. Если просят готовый ответ, помоги понять ход решения. Пиши кратко и без воды, выделяй главное **жирным**.`;
+  const hist=S.chat.filter(m=>m.t&&!m.err).slice(-10).map(m=>({role:m.r==='u'?'user':'assistant',content:m.t}));
+  return[{role:'system',content:sys},...hist];
+}
+function addItems(items){
+  const t=today(),out=[];
+  for(const it of items){
+    const task=String(it.task||'').trim();if(!task)continue;
+    let subject=String(it.subject||'Другое').trim();
+    subject=subjects().find(s=>same(s,subject))||subject;
+    let due=/^\d{4}-\d{2}-\d{2}$/.test(it.due||'')?it.due:null;
+    if(!due){const n=nextLesson(subject,t);due=n?ymd(n):null}
+    out.push({id:uid(),subject,task,due,done:false});
+  }
+  S.hw.push(...out);saveHw();return out;
+}
+const normExact=p=>{const d={};let n=0;for(let k=1;k<=5;k++){const a=p&&p.days&&p.days[k];if(Array.isArray(a)){const l=a.map(x=>String(x).trim()).filter(Boolean);if(l.length){d[k]=l;n++}}}return n?{days:d,at:ymd(today())}:null};
+const parseExact=raw=>{const h=String(raw).match(/\{[\s\S]*\}/);if(!h)return null;try{return normExact(JSON.parse(h[0]))}catch{return null}};
+const splitExact=raw=>{const m=raw.match(/<<<JSON([\s\S]*?)JSON>>>/);return{text:raw.replace(/<<<JSON[\s\S]*?JSON>>>/,'').replace(/<<<JSON[\s\S]*$/,'').trim(),ex:m?parseExact(m[1]):null}};
+const setExact=ex=>{S.exact=ex;store.set('sc_exact',ex);toast('Точное расписание загружено')};
+const exactMessages=t=>[{role:'system',content:JARVIS_EN+'Convert the school schedule text into JSON only, no commentary: {"days":{"1":["Subject classroom"],"2":[],"3":[],"4":[],"5":[]}} where keys 1-5 are Monday-Friday and lessons are in order, each written as the subject followed by the classroom. Leave out days that are missing.'},{role:'user',content:t}];
+function imageMessages(text,img){
+  return[{role:'system',content:IMG_PROMPT},{role:'user',content:[{type:'text',text:text||'Разбери это расписание уроков.'},{type:'image_url',image_url:{url:img}}]}];
+}
+async function send(){
+  const text=S.draft.trim(),img=S.img;if((!text&&!img)||S.busy)return;
+  if(!S.key){toast('Сначала вставьте ключ OpenRouter ниже');return}
+  S.chat.push(img?{r:'u',t:text||'Фото расписания',img:true,thumb:img}:{r:'u',t:text});
+  S.draft='';S.img=null;S.busy=true;saveChat();renderChat();
+  try{
+    if(img){
+      const full=await ask(imageMessages(text,img),raw=>raw.trim()||null,imageModels());
+      let{text:shown,ex}=splitExact(full);
+      if(!ex){try{ex=await ask(exactMessages(shown),parseExact)}catch{}}
+      S.chat.push({r:'a',t:shown||full.trim(),exact:!!ex});
+      if(ex)setExact(ex);
+    }else{
+      let handled=false;
+      if(HW_WORDS.test(text)&&!ASK_WORDS.test(text)){
+        const added=addItems(await ask(hwMessages(text),parseItems));
+        if(added.length){S.chat.push({r:'a',items:added});handled=true}
+      }
+      if(!handled){const reply=await ask(chatMessages(),raw=>raw.trim()||null);S.chat.push({r:'a',t:reply.trim()})}
+    }
+  }catch(e){S.chat.push({r:'a',err:e.message+(img?' Проверьте модель в настройках ниже.':'')})}
+  S.busy=false;saveChat();renderChat();
+}
+
+/* ---------- виджет «сейчас» ---------- */
+function nowInfo(){
+  const n=new Date(),sec=n.getHours()*3600+n.getMinutes()*60+n.getSeconds(),ls=lessonsOn(today());
+  if(!ls.length)return{k:'off'};
+  for(let i=0;i<ls.length&&i<BELLS.length;i++){
+    const s=mins(BELLS[i].start)*60,e=mins(BELLS[i].end)*60;
+    if(sec>=s&&sec<e)return{k:'lesson',i,sub:lessonName(ls[i]),raw:ls[i],left:e-sec,total:e-s};
+    if(sec<s)return{k:i?'break':'before',i,sub:lessonName(ls[i]),raw:ls[i],left:s-sec,total:i?s-mins(BELLS[i-1].end)*60:0};
+  }
+  return{k:'done'};
+}
+function nowHtml(){
+  const x=nowInfo(),mm=Math.ceil((x.left||0)/60),clock=fmtClock(x.left||0);
+  const bar=(p,bg)=>`<div class="h-1.5 rounded-full ${bg} mt-4 overflow-hidden"><div class="h-full rounded-full bg-white" style="width:${Math.max(0,Math.min(100,p))}%"></div></div>`;
+  const wrap=(cls,inner)=>`<div class="${cls} rounded-3xl p-5 mb-6">${inner}</div>`;
+  const hero='bg-gradient-to-br from-indigo-500 to-blue-600 shadow-lg shadow-blue-900/30';
+  if(x.k==='lesson')return wrap(hero,`<p class="text-white/70 text-sm">Идёт ${x.i+1}-й урок, ${BELLS[x.i].start}–${BELLS[x.i].end}${x.raw.toLowerCase()!==x.sub.toLowerCase()?' · '+esc(cap(x.raw)):''}</p><h2 class="text-[30px] leading-tight font-bold tracking-tight mt-1">${esc(x.sub)}</h2><div class="flex items-end justify-between mt-3"><p class="text-[15px] text-white/90">До конца ${esc(x.sub)} осталось <b>${fmtMin(mm)}</b></p><span class="text-2xl font-semibold tabular-nums">${clock}</span></div>${bar((x.total-x.left)/x.total*100,'bg-white/20')}`);
+  if(x.k==='break')return wrap('card',`<p class="text-zinc-400 text-sm">Перемена</p><h2 class="text-2xl font-bold tracking-tight mt-1">Дальше: ${esc(x.sub)}</h2><div class="flex items-end justify-between mt-3"><p class="text-[15px] text-zinc-300">До начала ${esc(x.sub)} осталось <b>${fmtMin(mm)}</b></p><span class="text-2xl font-semibold tabular-nums text-blue-400">${clock}</span></div>${bar((x.total-x.left)/x.total*100,'bg-white/10')}`);
+  if(x.k==='before')return wrap('card',`<p class="text-zinc-400 text-sm">Уроки ещё не начались</p><h2 class="text-2xl font-bold tracking-tight mt-1">Первый урок: ${esc(x.sub)}</h2><div class="flex items-end justify-between mt-3"><p class="text-[15px] text-zinc-300">Начало в ${BELLS[0].start}, осталось <b>${fmtMin(mm)}</b></p><span class="text-2xl font-semibold tabular-nums text-blue-400">${clock}</span></div>`);
+  if(x.k==='done')return wrap('card',`<p class="text-zinc-400 text-sm">Сегодня</p><h2 class="text-2xl font-bold tracking-tight mt-1">Уроки закончились</h2><p class="text-[15px] text-zinc-300 mt-2">Самое время сделать домашнее задание.</p>`);
+  return wrap('card',`<p class="text-zinc-400 text-sm">Сегодня</p><h2 class="text-2xl font-bold tracking-tight mt-1">Выходной</h2><p class="text-[15px] text-zinc-300 mt-2">Уроков нет, отдыхайте.</p>`);
+}
+function tick(){
+  if(S.tab!==0)return;
+  if(S.day&&S.day!==ymd(today())){render();return}
+  const n=$('#now');if(n)n.innerHTML=nowHtml();
+}
+
+/* ---------- экраны ---------- */
+function lessonRows(d,fn=lessonsOn){
+  const ds=ymd(d),t0=ymd(today());
+  return fn(d).map((l,i)=>{
+    const hw=S.hw.filter(h=>!h.done&&lessonHas(l,h.subject)&&(!h.due||h.due<=ds));
+    return `<div class="px-4 py-3 ${i?'border-t border-white/5':''}"><div class="flex items-center gap-3"><span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:hsl(${hue(lessonName(l))} 80% 62%)"></span><span class="font-medium flex-1">${esc(cap(l))}</span><span class="text-xs text-zinc-500 tabular-nums">${BELLS[i]?BELLS[i].start+'–'+BELLS[i].end:''}</span></div>${hw.map(h=>`<div class="mt-2 ml-5 text-[13px] rounded-lg bg-amber-400/10 text-amber-300 px-3 py-2">${esc(h.task)}<span class="opacity-60"> · ${h.due&&h.due<t0?'просрочено':h.due?'срок: '+dueLabel(h.due).toLowerCase():'без срока'}</span></div>`).join('')}</div>`;
+  }).join('');
+}
+function daySection(d,title,fn=lessonsOn){
+  return `<section class="mb-6"><div class="flex items-baseline justify-between px-1 mb-2"><h3 class="text-xl font-semibold tracking-tight">${title}</h3><span class="text-sm text-zinc-500">${DAYS_FULL[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}</span></div><div class="card overflow-hidden">${lessonRows(d,fn)||`<p class="p-5 text-zinc-500 text-sm">${fn===exactOn&&d.getDay()%6&&!S.exact.days[d.getDay()]?'В загруженном расписании нет этого дня.':'Уроков нет. Можно отдыхать.'}</p>`}</div></section>`;
+}
+const dashSched=(tm,nx)=>{
+  const part=fn=>daySection(tm,'Расписание на завтра',fn)+(ymd(nx)!==ymd(tm)?daySection(nx,'Ближайший учебный день',fn):'');
+  return `<div id="exact-schedule"${S.exact?'':' style="display:none"'}>${S.exact?`<p class="px-1 mb-3 text-xs text-emerald-400">Загружено точное расписание · ${fmt(fromYmd(S.exact.at))}</p>${part(exactOn)}`:''}</div><div id="predicted-schedule"${S.exact?' style="display:none"':''}>${part(predictedOn)}</div>`;
+};
+function vDash(){
+  const t=today(),tm=addDays(t,1),open=S.hw.filter(h=>!h.done);
+  S.day=ymd(t);
+  const od=open.filter(h=>h.due&&h.due<ymd(t)).length,dt=open.filter(h=>h.due===ymd(tm)).length;
+  let nx=tm;for(let i=0;i<7&&!lessonsOn(nx).length;i++)nx=addDays(nx,1);
+  const hr=new Date().getHours(),g=hr<5?'Доброй ночи':hr<12?'Доброе утро':hr<18?'Добрый день':'Добрый вечер';
+  const stat=(n,l,c)=>`<div class="card p-4"><div class="text-3xl font-bold tabular-nums ${c}">${n}</div><div class="text-sm text-zinc-400 mt-0.5">${l}</div></div>`;
+  return `<div class="mb-5 px-1"><p class="text-zinc-400 text-sm">${DAYS_FULL[t.getDay()]}, ${t.getDate()} ${MONTHS[t.getMonth()]}, неделя ${weekOf(t)}</p><h2 class="text-[32px] leading-tight font-bold tracking-tight mt-0.5">${g}!</h2></div>
+  <div id="now">${nowHtml()}</div>
+  <div class="grid grid-cols-2 gap-3 mb-6">${stat(dt,'ДЗ на завтра',dt?'text-amber-300':'text-zinc-200')}${stat(od,'просрочено',od?'text-rose-400':'text-zinc-200')}</div>
+  ${dashSched(tm,nx)}
+  `;
+}
+const hwRow=h=>`<div class="flex items-start gap-3 px-4 py-3 border-t border-white/5 first:border-0">
+  <button data-a="done" data-id="${h.id}" aria-label="Отметить выполненным" class="mt-0.5 w-6 h-6 rounded-full border-2 ${h.done?'bg-blue-500 border-blue-500':'border-zinc-600'} flex items-center justify-center shrink-0">${h.done?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>':''}</button>
+  <div class="flex-1 min-w-0"><p class="${h.done?'line-through text-zinc-500':''} break-words">${esc(h.task)}</p><p class="text-xs mt-1 ${!h.done&&h.due&&h.due<ymd(today())?'text-rose-400':'text-zinc-500'}">${dueLabel(h.due)}</p></div>
+  <button data-a="del" data-id="${h.id}" aria-label="Удалить" class="text-zinc-600 px-1 text-2xl leading-none">&times;</button></div>`;
+function vHw(){
+  const gr={};
+  S.hw.slice().sort((a,b)=>(a.done-b.done)||((a.due||'9')<(b.due||'9')?-1:1)).forEach(h=>(gr[h.subject]??=[]).push(h));
+  const anyDone=S.hw.some(h=>h.done);
+  const form=S.adding?`<div class="card p-4 mb-5 space-y-2.5"><input id="m-sub" list="subs" placeholder="Предмет"><datalist id="subs">${subjects().map(s=>`<option value="${esc(s)}">`).join('')}</datalist><input id="m-task" placeholder="Задание, например: упр. 5"><input id="m-due" type="date"><button data-a="addSave" class="w-full py-3 rounded-xl bg-blue-500 font-semibold">Добавить задание</button></div>`:'';
+  return `<div class="flex items-center justify-between px-1 mb-4"><h2 class="text-[32px] font-bold tracking-tight">Список ДЗ</h2><button data-a="addToggle" class="px-4 py-2 rounded-full bg-blue-500/15 text-blue-400 text-sm font-semibold">${S.adding?'Закрыть':'Добавить'}</button></div>${form}
+  ${Object.keys(gr).length?Object.entries(gr).map(([k,v])=>`<section class="mb-5"><div class="flex items-center gap-2 px-1 mb-2">${dot(k,'')}<h3 class="text-[15px] font-semibold">${esc(k)}</h3><span class="text-sm text-zinc-500">${v.filter(h=>!h.done).length||'всё готово'}</span></div><div class="card overflow-hidden">${v.map(hwRow).join('')}</div></section>`).join(''):`<div class="card p-8 text-center text-zinc-400 text-sm">Заданий пока нет. Напишите ДЗ во вкладке «ИИ Помощник» или добавьте вручную.</div>`}
+  ${anyDone?`<button data-a="clearDone" class="w-full card py-3.5 text-rose-400 font-medium">Удалить выполненные</button>`:''}`;
+}
+function vAI(){
+  const field=(l,c)=>`<label class="block mb-3"><span class="block text-sm text-zinc-400 mb-1.5 px-1">${l}</span>${c}</label>`;
+  return `<h2 class="text-[32px] font-bold tracking-tight px-1 mb-4">ИИ Помощник</h2>
+  <div class="card p-4 mb-3"><div id="chat" class="space-y-3 mb-3 max-h-[46vh] overflow-y-auto"></div>
+    <div id="attach"></div><input type="file" accept="image/*" id="schedule-photo-input" class="hidden"><div class="flex gap-2.5 items-center"><label for="schedule-photo-input" class="shrink-0 w-11 h-11 rounded-full bg-white/10 text-zinc-300 flex items-center justify-center cursor-pointer" aria-label="Прикрепить фото расписания"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></label><textarea id="inp" rows="1" placeholder="Напишите ДЗ или задайте вопрос" class="resize-none flex-1 min-w-0" style="padding:10px 14px;min-height:44px;max-height:120px;line-height:24px;border-radius:22px"></textarea><button data-a="send" class="shrink-0 w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center" aria-label="Отправить"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div></div>
+  <h3 class="px-1 mt-8 mb-2 text-xl font-semibold tracking-tight">Настройки</h3>
+  <div class="card p-4 mb-3">
+    ${field('API-ключ OpenRouter',`<div class="flex gap-2"><input id="key" type="${S.showKey?'text':'password'}" value="${esc(S.key)}" placeholder="sk-or-v1-..." autocomplete="off" autocapitalize="off" spellcheck="false"><button data-a="eye" class="shrink-0 px-3 rounded-xl bg-white/10 text-sm">${S.showKey?'Скрыть':'Показать'}</button></div>`)}
+    ${field('Jarvis Model',`<input id="model" value="${esc(S.model)}" autocapitalize="off" spellcheck="false">`)}
+    <p class="text-xs text-zinc-500 px-1">Jarvis по очереди пробует модели: Flint, затем Llama 3.1 8B, Llama 3.3 70B и в конце openrouter/free. Для фото текстовые модели пропускаются, и снимок разбирает openrouter/free, который сам выбирает бесплатную модель с поддержкой изображений.</p></div>
+  <div class="card p-4 mb-3 flex items-center justify-between"><div><p class="font-medium">Чередование недель</p><p class="text-sm text-zinc-400">Сейчас неделя ${weekOf(today())}</p></div><button data-a="shift" class="px-4 py-2 rounded-full bg-white/10 text-sm font-medium">Поменять A/B</button></div>
+  <div class="card p-4 mb-3"><p class="font-medium mb-1">Загруженное расписание</p><p class="text-sm text-zinc-400 mb-3">${S.exact?'Активно: прогнозное расписание на Дашборде скрыто.':'Не загружено: на Дашборде показано прогнозное расписание.'}</p><textarea id="exact-json" rows="3" spellcheck="false" placeholder="{&quot;days&quot;:{&quot;1&quot;:[&quot;Математика 47&quot;,&quot;Русский 23&quot;]}}"></textarea><div class="flex gap-2 mt-3"><button data-a="loadExact" class="flex-1 py-2.5 rounded-xl bg-blue-500 font-semibold">Загрузить вручную</button><button data-a="resetExact" class="px-4 py-2.5 rounded-xl bg-white/10">Сбросить</button></div></div>
+  <button data-a="clearChat" class="w-full card py-3.5 mb-3 text-blue-400 font-medium">Очистить чат</button>
+  <button data-a="wipe" class="w-full card py-3.5 text-rose-400 font-medium">Удалить все ДЗ</button>
+  <p class="text-center text-xs text-zinc-600 mt-5">Все данные хранятся только на этом устройстве.</p>`;
+}
+const fit=i=>{i.style.height='auto';i.style.height=Math.min(i.scrollHeight,120)+'px'};
+const fileToDataUrl=f=>new Promise((res,rej)=>{
+  const r=new FileReader();
+  r.onerror=()=>rej(new Error('read'));
+  r.onload=()=>{
+    const im=new Image();
+    im.onerror=()=>res(r.result);
+    im.onload=()=>{
+      const k=Math.min(1,1600/Math.max(im.width,im.height)),c=document.createElement('canvas'),x=c.getContext('2d');
+      c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+      x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+      res(c.toDataURL('image/jpeg',.85));
+    };
+    im.src=r.result;
+  };
+  r.readAsDataURL(f);
+});
+function renderAttach(){
+  const a=$('#attach');if(!a)return;
+  a.innerHTML=S.img?`<div class="relative inline-block mb-2.5"><img src="${S.img}" alt="Прикреплённое фото" class="h-16 w-auto rounded-xl border border-white/10"><button data-a="rmimg" aria-label="Убрать фото" class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-zinc-600 text-white text-sm leading-none flex items-center justify-center">&times;</button></div>`:'';
+}
+function renderChat(){
+  const c=$('#chat');if(!c)return;
+  const bub='rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm max-w-[92%] break-words';
+  const intro=`<div class="bg-zinc-800 ${bub}">Привет! Я Jarvis, помощник SmartClass. Напишите домашнее задание, например «упр. 5 по математике и стр. 10-12 по литературе к пятнице», и я добавлю его в список. Или задайте любой вопрос по учёбе. Кнопкой слева можно прикрепить фото расписания, и я разберу его.</div>`;
+  c.innerHTML=intro+S.chat.map(m=>m.r==='u'?`<div class="flex justify-end"><div class="bg-blue-500 rounded-2xl rounded-br-md px-3.5 py-2.5 text-sm max-w-[88%] break-words">${m.thumb?`<img src="${m.thumb}" alt="Фото расписания" class="rounded-xl mb-2 max-h-40 w-auto">`:''}${m.img&&m.t==='Фото расписания'?(m.thumb?'':'Фото расписания'):esc(m.t)}</div></div>`
+   :m.err?`<div class="bg-rose-500/15 text-rose-300 ${bub}">${esc(m.err)}</div>`
+   :m.items?`<div class="bg-zinc-800 ${bub}"><p class="font-semibold mb-1.5">Добавлено в список ДЗ: ${m.items.length}</p>${m.items.map(i=>`<div class="flex gap-2 py-0.5">${dot(i.subject)}<span><b>${esc(i.subject)}</b>: ${esc(i.task)} <span class="text-zinc-400">(${dueLabel(i.due).toLowerCase()})</span></span></div>`).join('')}</div>`
+   :`<div class="bg-zinc-800 ${bub} leading-relaxed">${rich(m.t)}${m.exact?'<p class="text-xs text-emerald-400 mt-2">Сохранено как основное расписание на Дашборде</p>':''}</div>`).join('')
+   +(S.busy?`<div class="bg-zinc-800 ${bub} w-fit pulse">Jarvis думает…</div>`:'');
+  c.scrollTop=c.scrollHeight;
+  const i=$('#inp');if(i){i.value=S.draft;fit(i)}renderAttach();
+}
+function render(){
+  document.querySelectorAll('nav [data-a=tab]').forEach(b=>{b.style.color=+b.dataset.id===S.tab?'#0a84ff':'#8e8e93'});
+  $('#view').innerHTML=[vDash,vHw,vAI][S.tab]();
+  if(S.tab===2)renderChat();
+  window.scrollTo(0,0);
+}
+
+/* ---------- события ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const a=b.dataset.a,id=b.dataset.id,h=S.hw.find(x=>x.id===id);
+  if(a==='tab'){S.tab=+id;render()}
+  else if(a==='done'&&h){h.done=!h.done;saveHw();render()}
+  else if(a==='del'){S.hw=S.hw.filter(x=>x.id!==id);saveHw();render()}
+  else if(a==='clearDone'){S.hw=S.hw.filter(x=>!x.done);saveHw();render()}
+  else if(a==='addToggle'){S.adding=!S.adding;render()}
+  else if(a==='addSave'){
+    const sub=$('#m-sub').value.trim(),task=$('#m-task').value.trim(),due=$('#m-due').value||null;
+    if(!sub||!task){toast('Укажите предмет и задание');return}
+    S.hw.push({id:uid(),subject:subjects().find(s=>same(s,sub))||sub,task,due,done:false});saveHw();S.adding=false;render();toast('Задание добавлено');
+  }
+  else if(a==='send')send();
+  else if(a==='rmimg'){S.img=null;renderAttach()}
+  else if(a==='loadExact'){const ex=parseExact($('#exact-json').value);if(!ex){toast('Неверный формат расписания');return}setExact(ex);render()}
+  else if(a==='resetExact'){S.exact=null;store.set('sc_exact',null);render();toast('Снова активно прогнозное расписание')}
+  else if(a==='eye'){S.showKey=!S.showKey;render()}
+  else if(a==='shift'){S.shift=S.shift?0:1;store.set('sc_shift',S.shift);render();toast('Недели A/B поменяны местами')}
+  else if(a==='clearChat'){S.chat=[];saveChat();renderChat();toast('Чат очищен')}
+  else if(a==='wipe'&&confirm('Удалить все домашние задания?')){S.hw=[];saveHw();render()}
+});
+document.addEventListener('input',e=>{
+  const i=e.target.id;
+  if(i==='key'){S.key=e.target.value.trim();store.set('sc_key',S.key)}
+  else if(i==='model'){S.model=e.target.value.trim();store.set('sc_model_v5',S.model)}
+  else if(i==='inp'){S.draft=e.target.value;fit(e.target)}
+});
+document.addEventListener('change',async e=>{
+  if(e.target.id!=='schedule-photo-input')return;
+  const f=e.target.files&&e.target.files[0];e.target.value='';
+  if(!f)return;
+  try{S.img=await fileToDataUrl(f);renderAttach();toast('Фото прикреплено, нажмите отправить')}
+  catch{toast('Не удалось прочитать изображение')}
+});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.tab===0)render()});
+
+/* ---------- иконка на экран «Домой» и запуск ---------- */
+(()=>{const c=document.createElement('canvas');c.width=c.height=180;const x=c.getContext('2d'),g=x.createLinearGradient(0,0,180,180);
+g.addColorStop(0,'#5e5ce6');g.addColorStop(1,'#0a84ff');x.fillStyle=g;x.fillRect(0,0,180,180);
+x.strokeStyle='#fff';x.lineWidth=16;x.lineCap='round';x.lineJoin='round';x.beginPath();x.moveTo(52,94);x.lineTo(80,122);x.lineTo(130,62);x.stroke();
+$('#icon').href=c.toDataURL()})();
+render();
+setInterval(tick,1000);
+</script>
+</body>
+</html>
